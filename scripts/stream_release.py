@@ -158,12 +158,25 @@ def iter_resumable(session, url, total_size, block_size=4 * 1024 * 1024, max_ret
     return
 
 
+def find_release(repo, tag):
+    """Find a draft via list endpoint (GET-by-tag may return 404 for drafts)."""
+    page = 1
+    while True:
+        raw = subprocess.check_output(
+            ["gh", "api", f"repos/{repo}/releases?per_page=100&page={page}"], text=True)
+        batch = json.loads(raw)
+        for release in batch:
+            if release.get("tag_name") == tag:
+                return release
+        if len(batch) < 100:
+            return None
+        page += 1
+
+
 def release_assets(repo, tag):
-    """Get the authenticated release, including drafts; fail closed if not found."""
-    raw = subprocess.check_output(["gh", "api", f"repos/{repo}/releases/tags/{tag}"], text=True)
-    release = json.loads(raw)
-    if not release.get("draft"):
-        raise ValueError("Refusing to alter an already published release")
+    release = find_release(repo, tag)
+    if release is None or not release.get("draft"):
+        raise ValueError("Expected an existing draft release; refusing to overwrite a published release")
     return {a["name"]: a for a in release.get("assets", [])}
 
 
