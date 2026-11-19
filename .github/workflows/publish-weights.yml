@@ -38,18 +38,27 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > /tmp/release.json 2>/dev/null; then
-            if ! python -c 'import json; assert json.load(open("/tmp/release.json"))["draft"] is True'; then
-              echo "Existing release is not a draft. Refusing to overwrite." >&2
-              exit 1
-            fi
-            echo "Resuming existing draft release $TAG"
-          else
-            gh release create "$TAG" --draft \
-              --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" \
-              --title 'Perplexity pplx-decider-flash-v1.3 model weight mirror' \
-              --notes 'Unmodified upstream snapshot: https://huggingface.co/perplexity-ai/pplx-decider-flash-v1.3. Apache-2.0; see included license, model card, and manifest for hashes.'
-          fi
+          python - <<'PY'
+          import os
+          import subprocess
+          import sys
+          sys.path.insert(0, "scripts")
+          from stream_release import find_release
+          repo = os.environ["GITHUB_REPOSITORY"]
+          tag = os.environ["TAG"]
+          existing = find_release(repo, tag)
+          if existing is not None:
+              if not existing.get("draft"):
+                  raise SystemExit("Existing release is already published; refusing to overwrite.")
+              print(f"Resuming existing draft release {tag} with {len(existing.get('assets', []))} assets")
+          else:
+              subprocess.run([
+                  "gh", "release", "create", tag, "--draft",
+                  "--target", os.environ["GITHUB_SHA"], "--repo", repo,
+                  "--title", "Perplexity pplx-decider-flash-v1.3 model weight mirror",
+                  "--notes", "Unmodified upstream snapshot: https://huggingface.co/perplexity-ai/pplx-decider-flash-v1.3. Apache-2.0; see included license, model card, and manifest for hashes."
+              ], check=True)
+          PY
       - name: Stream upstream files to release chunks
         env:
           GH_TOKEN: ${{ github.token }}
