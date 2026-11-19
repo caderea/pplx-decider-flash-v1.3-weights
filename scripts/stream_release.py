@@ -141,6 +141,8 @@ def main():
         raise RuntimeError("No model files found")
     print(f"Pinned revision: {revision}; {len(entries)} files", flush=True)
     session = requests.Session()
+    if os.environ.get("HF_TOKEN"):
+        session.headers.update({"Authorization": "Bearer " + os.environ["HF_TOKEN"]})
     retry = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
     session.mount("https://", HTTPAdapter(max_retries=retry))
 
