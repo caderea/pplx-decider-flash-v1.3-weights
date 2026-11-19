@@ -11,7 +11,7 @@ Independent, public GitHub Releases mirror of [Perplexity's pplx-decider-flash-v
 
 If the Hugging Face snapshot requires authentication, add an authorized `HF_TOKEN` repository Actions secret; ensure the token has download access to the upstream model. **Never commit the token.** The workflow can fail if Hugging Face limits access or permissions are insufficient.
 
-If an interrupted run leaves a **draft release**, remove the draft in GitHub Releases before restarting using the same tag (the workflow intentionally refuses to overwrite existing releases). Do not publish an incomplete draft manually.
+If a run fails midway, **rerun the workflow using the same revision and tag**. The publisher will reuse previously uploaded chunks only when their size and SHA-256 digest match the regenerated chunks. It also resumes Hugging Face downloads using HTTP Range after transient connection failures. Existing draft Releases are reused and are only published once the full manifest and every chunk have been processed. If a reused asset differs, the workflow fails safely rather than overwriting it. Do not manually publish an incomplete draft.
 
 ## Download on another computer
 
